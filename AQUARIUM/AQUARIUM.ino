@@ -9,6 +9,7 @@
 #include <Wire.h>
 #include "RTClib.h"
 #include <DallasTemperature.h>
+#include <DHT.h>
 
 #define VERSION "version 0.0.3"
 
@@ -16,6 +17,13 @@
 OneWire oneWire(3); //Bus One Wire sur la pin 3 de l'arduino
 DallasTemperature sensors(&oneWire); //Utilistion du bus Onewire pour les capteurs
 DeviceAddress sensorDeviceAddress; //Vérifie la compatibilité des capteurs avec la librairie
+
+// DHT22
+// @todo : 
+#define DHT_PIN 2
+#define DHTTYPE DHT22
+
+DHT dht(DHT_PIN, DHTTYPE);
 
 // Create RTC object
 RTC_DS1307 RTC;
@@ -54,6 +62,9 @@ void setup() {
 
     lcd.setCursor(0,0);
     lcd.print("nous sommes le");
+
+    // Init dht
+    dht.begin();
 }
 
 void loop() {
@@ -91,4 +102,24 @@ void getTemperature()
     Serial.print("La température est: ");
     Serial.print(sensors.getTempCByIndex(0)); //Récupération de la température en celsius du capteur n°0
     Serial.println(" C°");
+}
+
+void getHumidityAndTemperature()
+{
+    // Get humidity
+    float humidity = dht.readHumidity();
+
+    // Get temperature (in Celsius)
+    float temperature = dht.readTemperature();
+
+    if (isnan(humidity) || isnan(temperature) ) {
+        Serial.println("Failed to read from DHT sensor!");
+        return;
+    }
+
+    char buffer[200] = {0, };
+    snprintf(buffer, 199, "Humidity : %d \% -- Temperature : %d°C", 
+           humidity, temperature);
+
+    Serial.println(buffer);
 }
