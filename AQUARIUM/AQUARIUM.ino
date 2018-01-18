@@ -1,50 +1,94 @@
- #include <LiquidCrystal_I2C.h>
-  #include <Wire.h>
-  #include "RTClib.h"
+/**
+ * AQUARIUM
+ * @version 0.0.3
+ * @author Bryan Thoury
+ * @author Jérémy Cheynet
+ */
 
-  RTC_DS1307 RTC;
+#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
+#include "RTClib.h"
+#include <DallasTemperature.h>
 
-// initialize the library with the numbers of the interface pins
-//LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+#define VERSION "version 0.0.3"
+
+//DS18B20
+OneWire oneWire(3); //Bus One Wire sur la pin 3 de l'arduino
+DallasTemperature sensors(&oneWire); //Utilistion du bus Onewire pour les capteurs
+DeviceAddress sensorDeviceAddress; //Vérifie la compatibilité des capteurs avec la librairie
+
+// Create RTC object
+RTC_DS1307 RTC;
+
+// Init liquid crystal (I2C)
 LiquidCrystal_I2C lcd(0x27,16,2);
 
 void setup() {
-  lcd.init();                      // initialiser le lcd
-  lcd.init();
-  // Imprime un message sur l'écran LCD.
-  lcd.backlight();
-  lcd.setCursor(1,0);
-  lcd.print("nous sommes le");
+    // Init serial
+    Serial.begin(9600);
+    Serial.println("Aquarium start");
+    Serial.println(VERSION);
 
-  
+    // Init lcd
+    lcd.init();
+    lcd.backlight();
+    lcd.setCursor(0,0);
+    lcd.print("Aquarium start");
+    lcd.setCursor(0,1);
+    lcd.print(VERSION);
+
+    // Wait 5s before continue programme
+    delay(5000);
+
+    // Init I2C
     Wire.begin();
-    RTC.begin();
 
-  if (! RTC.isrunning()) {
-    Serial.println("RTC n est pas en cours de fonctionnement!");
-    // La ligne suivante fixe la date et l'heure du RTC avec les date et heur de compilation du sketch
-    //RTC.adjust(DateTime(__DATE__, __TIME__));
+    // Init RTC (DS3132)
+    RTC.begin();
+    if (! RTC.isrunning()) {
+        Serial.println("Can't init RTC");
+        lcd.setCursor(0,0);
+        lcd.print("Can't init RTC");
+        delay(2000);
     }
+
+    lcd.setCursor(0,0);
+    lcd.print("nous sommes le");
 }
 
 void loop() {
-  // placez le curseur sur la colonne 0, ligne 1
-  // (note: la ligne 1 est la deuxième ligne, puisque le comptage commence par 0):
-  lcd.setCursor(0, 1);
-  // affiche le nombre de secondes écoulées depuis la réinitialisation:
-  //lcd.print(millis()/1000);
-  
+    // Get time and display (lcd and serial)
+    displayTime();
+
+    // Get temperature
+    getTemperature();
+
+    // attend 100ms
+    delay(100);
+}
+
+void displayTime()
+{
+    // Get DateTime
     DateTime now = RTC.now();
-    lcd.print(now.year()-2000, DEC);
-    lcd.print('/');
-    lcd.print(now.month(), DEC);
-    lcd.print('/');
-    lcd.print(now.day(), DEC);
-    lcd.print(' ');
-    lcd.print(now.hour(), DEC);
-    lcd.print(':');
-    lcd.print(now.minute(), DEC);
-    lcd.print(':');
-    lcd.print(now.second(), DEC);
-    lcd.println(".");
+
+    // Transformation de la date et de l'heure en chaine de caractère
+    char buffer[200] = {0, };
+    snprintf(buffer, 199, "%02d/%02d/%02d %02d:%02d   ", now.year()-2000,
+    now.month(), now.day(), now.hour(), now.minute(), now.second());
+
+    // Afficher DateTime
+    lcd.setCursor(0, 1);  
+    lcd.print(buffer);
+
+    // Imprimer DateTime en série
+    Serial.println(buffer);
+}
+
+void getTemperature()
+{
+    sensors.requestTemperatures(); //Demande la température aux capteurs
+    Serial.print("La température est: ");
+    Serial.print(sensors.getTempCByIndex(0)); //Récupération de la température en celsius du capteur n°0
+    Serial.println(" C°");
 }
